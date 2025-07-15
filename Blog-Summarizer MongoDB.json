@@ -1,0 +1,285 @@
+{
+  "name": "Blog-Summarizer MongoDB",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blog-summary",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -120,
+        0
+      ],
+      "id": "fedaa4b1-8ed4-4792-8e3f-69b834856277",
+      "name": "Receive Blog Post",
+      "webhookId": "c11ec8b4-514e-41a2-933b-c844da75ae39"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "collection": "articles",
+        "fields": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content }}\",\n  \"status\": \"{{ $json.status }}\",\n  \"created_at\": \"{{ $json.created_at }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        280,
+        0
+      ],
+      "id": "3c985640-703d-4470-9172-96113c670ce9",
+      "name": "Insert Blog to DB",
+      "credentials": {
+        "mongoDb": {
+          "id": "quhRtWYNeAtXIPya",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content }}\",\n  \"status\": \"{{ $json.status }}\",\n  \"created_at\": \"{{ $json.created_at }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        800,
+        0
+      ],
+      "id": "04654421-dbad-42c0-8a5a-6b761b7a411f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "collection": "articles",
+        "options": {},
+        "query": "={{ $json[\"\"content\": \"Over the past decade\"] }}"
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "79722bea-c57d-4d48-9740-06f280dbb39d",
+      "name": "MongoDB",
+      "alwaysOutputData": false,
+      "credentials": {
+        "mongoDb": {
+          "id": "quhRtWYNeAtXIPya",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "faf64241-d93d-4083-b3d3-22783248a221",
+              "name": "title",
+              "value": "={{ $json.body.title }}",
+              "type": "string"
+            },
+            {
+              "id": "e91bfa80-2b00-478b-bbc8-f8b61abe51c3",
+              "name": "content",
+              "value": "={{ $json.body.content }}",
+              "type": "string"
+            },
+            {
+              "id": "6b611821-d796-4707-a01e-6e65f0baa024",
+              "name": "status",
+              "value": "={{ $json.body.status }}",
+              "type": "string"
+            },
+            {
+              "id": "d544f230-2aee-4c2b-87e7-fcea30efc426",
+              "name": "created_at",
+              "value": "={{ $json.body.created_at }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        100,
+        0
+      ],
+      "id": "b0fa17de-f118-463a-91b3-c46d3e560e2a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=[\n  {\n    \"role\": \"system\",\n    \"content\": \"You are a helpful assistant that summarizes blog content in 1-2 sentences.\"\n  },\n  {\n    \"role\": \"user\",\n    \"content\": \"{{ $json.content }}\"\n  }\n]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        740.125,
+        0
+      ],
+      "id": "adc2c9e4-03ea-4f5a-8238-3513be6e6e40",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "eVoyRa8fv5EMxAbn",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "collection": "articles",
+        "updateKey": "_id",
+        "fields": "=summary: {{ $node[\"Message a model\"].json[\"message\"][\"content\"] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mongoDb",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "d6c0a74b-9c68-412c-a0c9-b38adb2d8fab",
+      "name": "MongoDB1",
+      "credentials": {
+        "mongoDb": {
+          "id": "quhRtWYNeAtXIPya",
+          "name": "MongoDB account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseKey": "={   \"title\": \"{{ $json.title }}\",   \"content\": \"{{ $json.content }}\",   \"summary\": \"{{ $json.summary }}\" }"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1400,
+        0
+      ],
+      "id": "730f333e-6551-434b-affc-3144bcfa46e3",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "content": "I tried hard to fix error of find node to retrieve data from database but when i retrieved using {}query it shows data but it doesn't show data when i queried for a particular type of title or status\n"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        760,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "b75ad688-cc76-4ae3-a955-bf8ea71b35bb",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Blog Post": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Blog to DB": {
+      "main": [
+        [
+          {
+            "node": "MongoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Insert Blog to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "MongoDB1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e39a21cc-423b-4a8c-88b6-ce49fdfc6021",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21a757461226eef340d1b138e4e2607fb9ee28b0454849ce19055ccae2354750"
+  },
+  "id": "lb3mCEwnDSE6lZuD",
+  "tags": []
+}
