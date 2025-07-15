@@ -1,0 +1,237 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "blog-summariser",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        -20
+      ],
+      "id": "bdc6fc2f-e529-4046-9c7e-7c2738ca8284",
+      "name": "Webhook",
+      "webhookId": "27e4e432-3ab7-484b-a5e6-e71c3b531cfc"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Summarize the following blog content in 2–3 lines:\n\n{{ $node[\"Webhook\"].json[\"body\"][\"content\"] }}\n\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        240,
+        -20
+      ],
+      "id": "23f4ae33-62ed-4240-b838-a0b8686f97c8",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "eVoyRa8fv5EMxAbn",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"summary\": \"{{ $node['Message a model'].json.message.content.replace(/\"/g, '\\\\\"') }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        920,
+        -20
+      ],
+      "id": "4134228b-2a87-4746-858c-01e736ac46b7",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6e169e3a-9f2a-402e-bb15-9486e3d2a96c",
+              "leftValue": "={{ $json[\"wordCount\"] }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        120,
+        180
+      ],
+      "id": "1fe3b883-7783-4439-ac9e-9801ca7bdaa9",
+      "name": "Check Length"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "63d4c6ae-e7d3-46d2-b5e3-7ce5951b31ba",
+              "name": "wordCount",
+              "value": "={{ $json[\"body\"][\"content\"].toString().split(\" \").length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -20,
+        -20
+      ],
+      "id": "3e37ac86-410f-44a8-9892-aaf1f52102b4",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"summary\": \"Content is short. No summarization needed.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        400,
+        200
+      ],
+      "id": "3372232f-16c9-4ee4-b1eb-4b3a76e95a0e",
+      "name": "Short Content Response"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO blog_summaries (content, summary)VALUES ('{{ $json[\"content\"] }}', '{{ $node[\"Message a model\"].json[\"message\"][\"content\"].replace(/'/g, \"''\") }}');",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        660,
+        -80
+      ],
+      "id": "f9b0f7f4-0179-444e-96df-4c344a6bf5fd",
+      "name": "Save Summary",
+      "credentials": {
+        "postgres": {
+          "id": "EMdkiLTaGXf6ACT2",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Save Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Length": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Short Content Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Check Length",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Summary": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "61aabb54-186f-4068-91c3-55611750993b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21a757461226eef340d1b138e4e2607fb9ee28b0454849ce19055ccae2354750"
+  },
+  "id": "bn4t33YHqof5Nln5",
+  "tags": []
+}
